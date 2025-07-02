@@ -58,6 +58,14 @@ class Entry {
     }
 }
 
+type TEntry = {
+    Date: string;
+    From: string;
+    To: string;
+    Narrative: string;
+    Amount: number;
+}
+
 function VerifyDate(date: string) : boolean {
     if (date.length != 10)
         return false;
@@ -136,27 +144,28 @@ function UpdateAccounts(entries: Entry[]): Array<Person>{
     return accounts;
 }
 
-logger.info("Asking user to decide the dataset.");
-let readlineSync = require('readline-sync');
-let fileChosen: string = readlineSync.question('Which file would you like to use? (\'1\' for \'Transactions2014.csv\' or \'2\' for \'DodgyTransactions2015.csv\')');
-logger.info(`User has chosen option ${fileChosen}.`);
-let filename: string = "";
-let entries: Entry[] = [];
-switch (fileChosen) {
-    case "1":
-        logger.info("Starting to read Transactions2014.csv.")
-        entries = ReadCSV('Transactions2014.csv');
-        logger.info("Finished reading Transactions2014.csv.")
-        break;
-    case "2":
-        logger.info("Starting to read DodgyTransactions2015.csv.")
-        entries = ReadCSV('DodgyTransactions2015.csv');
-        logger.info("Finished reading DodgyTransactions2015.csv.")
-        break;
-    default:
-        logger.error("User has given an invalid number.")
-        break;
+function ReadJSON(filename: string): Entry[] {
+    let dataArray = JSON.parse(fs.readFileSync(filename, 'utf-8'), Entry);
+    console.log(dataArray);
+    return [];
 }
+
+let entries: Entry[] = [];
+
+logger.info("Starting to read Transactions2014.csv.")
+let e1 = ReadCSV('Transactions2014.csv');
+logger.info("Finished reading Transactions2014.csv.")
+
+logger.info("Starting to read DodgyTransactions2015.csv.")
+let e2 = ReadCSV('DodgyTransactions2015.csv');
+logger.info("Finished reading DodgyTransactions2015.csv.")
+
+logger.info("Starting to read Transactions2013.json.")
+let e3 = ReadJSON('Transactions2013.json');
+logger.info("Finished reading Transactions2013.json.")
+
+entries = e1.concat(e2.concat(e3));
+
 console.log(entries.length);
 logger.info("Starting to create account dataset.");
 let accounts: Array<Person> = UpdateAccounts(entries);

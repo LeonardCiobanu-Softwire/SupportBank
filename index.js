@@ -120,27 +120,22 @@ function UpdateAccounts(entries) {
     }
     return accounts;
 }
-logger.info("Asking user to decide the dataset.");
-var readlineSync = require('readline-sync');
-var fileChosen = readlineSync.question('Which file would you like to use? (\'1\' for \'Transactions2014.csv\' or \'2\' for \'DodgyTransactions2015.csv\')');
-logger.info("User has chosen option ".concat(fileChosen, "."));
-var filename = "";
-var entries = [];
-switch (fileChosen) {
-    case "1":
-        logger.info("Starting to read Transactions2014.csv.");
-        entries = ReadCSV('Transactions2014.csv');
-        logger.info("Finished reading Transactions2014.csv.");
-        break;
-    case "2":
-        logger.info("Starting to read DodgyTransactions2015.csv.");
-        entries = ReadCSV('DodgyTransactions2015.csv');
-        logger.info("Finished reading DodgyTransactions2015.csv.");
-        break;
-    default:
-        logger.error("User has given an invalid number.");
-        break;
+function ReadJSON(filename) {
+    var dataArray = JSON.parse(fs.readFileSync(filename, 'utf-8'));
+    console.log(dataArray);
+    return [];
 }
+var entries = [];
+logger.info("Starting to read Transactions2014.csv.");
+var e1 = ReadCSV('Transactions2014.csv');
+logger.info("Finished reading Transactions2014.csv.");
+logger.info("Starting to read DodgyTransactions2015.csv.");
+var e2 = ReadCSV('DodgyTransactions2015.csv');
+logger.info("Finished reading DodgyTransactions2015.csv.");
+logger.info("Starting to read Transactions2013.json.");
+var e3 = ReadJSON('Transactions2013.json');
+logger.info("Finished reading Transactions2013.json.");
+entries = e1.concat(e2.concat(e3));
 console.log(entries.length);
 logger.info("Starting to create account dataset.");
 var accounts = UpdateAccounts(entries);
@@ -148,9 +143,9 @@ logger.info("Finished creating account dataset.");
 logger.info("Database complete, receiving user input.");
 var exit = false;
 while (!exit) {
-    var readlineSync_1 = require('readline-sync');
+    var readlineSync = require('readline-sync');
     logger.info("Waiting for user input.");
-    var command = readlineSync_1.question('');
+    var command = readlineSync.question('');
     if (command.split(' ')[0] !== 'List') {
         logger.error("User has input a invalid command.");
         console.log('Please enter a valid command');
