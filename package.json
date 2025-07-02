@@ -1,0 +1,30 @@
+{
+  "name": "supportbank",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/LeonardCiobanu-Softwire/SupportBank#readme",
+  "bugs": {
+    "url": "https://github.com/LeonardCiobanu-Softwire/SupportBank/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LeonardCiobanu-Softwire/SupportBank.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "index.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "csv": "^6.3.11",
+    "log4js": "^6.9.1",
+    "readline-sync": "^1.4.10",
+    "ts-node": "^10.9.2"
+  }
+}
