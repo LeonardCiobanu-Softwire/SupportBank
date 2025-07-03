@@ -66,21 +66,27 @@ function VerifyNameFormat(name) {
 }
 function ReadCSV(filename) {
     var entries = [];
-    var csvFilePath = path.resolve(__dirname, filename);
-    var fileContent = fs.readFileSync(csvFilePath, { encoding: 'utf-8' });
-    for (var _i = 0, _a = fileContent.split('\n'); _i < _a.length; _i++) {
-        var line = _a[_i];
-        var list = line.split(',');
-        if (list.length > 1 && VerifyDate(list[0]) && VerifyNameFormat(list[1]) && VerifyNameFormat(list[2])) {
-            var e = new Entry(list[0], list[1], list[2], list[3], Number(list[4]));
-            entries.push(e);
+    try {
+        var csvFilePath = path.resolve(__dirname, filename);
+        var fileContent = fs.readFileSync(csvFilePath, { encoding: 'utf-8' });
+        for (var _i = 0, _a = fileContent.split('\n'); _i < _a.length; _i++) {
+            var line = _a[_i];
+            var list = line.split(',');
+            if (list.length > 1 && VerifyDate(list[0]) && VerifyNameFormat(list[1]) && VerifyNameFormat(list[2])) {
+                var e = new Entry(list[0], list[1], list[2], list[3], Number(list[4]));
+                entries.push(e);
+            }
+            else {
+                logger.error("Found invalid entry, skipping...");
+            }
         }
-        else {
-            logger.error("Found invalid entry, skipping...");
-        }
+        console.log(entries.length);
+        return entries;
     }
-    console.log(entries.length);
-    return entries;
+    catch (e) {
+        console.log("File not found.");
+        return [];
+    }
 }
 function VerifyUniqueTransaction(account, transaction) {
     for (var _i = 0, _a = account.transactions; _i < _a.length; _i++) {
@@ -130,33 +136,39 @@ function UpdateAccounts(entries) {
     return accounts;
 }
 function ReadJSON(filename) {
-    var entries = [];
-    var d, f, t, n, a;
-    JSON.parse(fs.readFileSync(filename, 'utf-8'), function (key, value) {
-        // console.log(key, typeof(key), value, typeof(value));
-        if (typeof (key) != typeof ([])) {
-            if (key === "Date") {
-                d = value;
+    try {
+        var entries_2 = [];
+        var d_1, f_1, t_1, n_1, a_1;
+        JSON.parse(fs.readFileSync(filename, 'utf-8'), function (key, value) {
+            // console.log(key, typeof(key), value, typeof(value));
+            if (typeof (key) != typeof ([])) {
+                if (key === "Date") {
+                    d_1 = value;
+                }
+                else if (key === "FromAccount") {
+                    f_1 = value;
+                }
+                else if (key === "ToAccount") {
+                    t_1 = value;
+                }
+                else if (key === "Narrative") {
+                    n_1 = value;
+                }
+                else if (key === "Amount") {
+                    a_1 = Number(value);
+                }
+                else if (key != "") {
+                    entries_2.push(new Entry(d_1, f_1, t_1, n_1, a_1));
+                    // console.log(`added entry with Date: ${d}, From: ${f}, To: ${t}, Narrative: ${n} and Amount: ${a}`);
+                }
             }
-            else if (key === "FromAccount") {
-                f = value;
-            }
-            else if (key === "ToAccount") {
-                t = value;
-            }
-            else if (key === "Narrative") {
-                n = value;
-            }
-            else if (key === "Amount") {
-                a = Number(value);
-            }
-            else if (key != "") {
-                entries.push(new Entry(d, f, t, n, a));
-                // console.log(`added entry with Date: ${d}, From: ${f}, To: ${t}, Narrative: ${n} and Amount: ${a}`);
-            }
-        }
-    });
-    return entries;
+        });
+        return entries_2;
+    }
+    catch (e) {
+        console.log("File not found.");
+        return [];
+    }
 }
 function ConvertInterfaceToClass(interfaces) {
     var entries = [];
@@ -172,13 +184,19 @@ function ConvertInterfaceToClass(interfaces) {
     return entries;
 }
 function ReadXML(filename) {
-    var xmlFilePath = path.resolve(__dirname, filename);
-    var fileContent = fs.readFileSync(xmlFilePath, { encoding: 'utf-8' });
-    var parser = new fast_xml_parser_1.XMLParser({
-        ignoreAttributes: false,
-    });
-    var entryInterfaces = parser.parse(fileContent);
-    return ConvertInterfaceToClass(entryInterfaces);
+    try {
+        var xmlFilePath = path.resolve(__dirname, filename);
+        var fileContent = fs.readFileSync(xmlFilePath, { encoding: 'utf-8' });
+        var parser = new fast_xml_parser_1.XMLParser({
+            ignoreAttributes: false,
+        });
+        var entryInterfaces = parser.parse(fileContent);
+        return ConvertInterfaceToClass(entryInterfaces);
+    }
+    catch (e) {
+        console.log("File not found.");
+        return [];
+    }
 }
 var entries = [];
 logger.info("Starting to read Transactions2014.csv.");
@@ -264,3 +282,5 @@ while (!exit) {
         }
     }
 }
+// TODO: Handle file not found
+// TODO: Log newer functions

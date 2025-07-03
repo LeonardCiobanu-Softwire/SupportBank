@@ -90,20 +90,27 @@ function VerifyNameFormat(name: string): boolean {
 function ReadCSV(filename: string) : Entry[] {
     
     let entries: Entry[] = [];
-    const csvFilePath: string = path.resolve(__dirname, filename);
-    const fileContent: string = fs.readFileSync(csvFilePath, { encoding: 'utf-8'});
-    
-    for (let line of fileContent.split('\n')) {
-        let list: string[] = line.split(',');
-        if (list.length > 1 && VerifyDate(list[0]) && VerifyNameFormat(list[1]) && VerifyNameFormat(list[2])) {
-            let e: Entry = new Entry(list[0], list[1], list[2], list[3], Number(list[4]));
-            entries.push(e);
-        } else {
-            logger.error("Found invalid entry, skipping...");
+    try{
+
+        const csvFilePath: string = path.resolve(__dirname, filename);
+        const fileContent: string = fs.readFileSync(csvFilePath, { encoding: 'utf-8'});
+
+        for (let line of fileContent.split('\n')) {
+            let list: string[] = line.split(',');
+            if (list.length > 1 && VerifyDate(list[0]) && VerifyNameFormat(list[1]) && VerifyNameFormat(list[2])) {
+                let e: Entry = new Entry(list[0], list[1], list[2], list[3], Number(list[4]));
+                entries.push(e);
+            } else {
+                logger.error("Found invalid entry, skipping...");
+            }
         }
+        console.log(entries.length);
+        return entries;
+
+    } catch (e) {
+        console.log("File not found.")
+        return [];
     }
-    console.log(entries.length);
-    return entries;
 }
 
 function VerifyUniqueTransaction(account: Person, transaction: Transaction): boolean {
@@ -155,28 +162,35 @@ function UpdateAccounts(entries: Entry[]): Array<Person>{
 }
 
 function ReadJSON(filename: string): Entry[] {
-    let entries: Entry[] = [];
-    let d: string, f: string, t: string, n: string, a: number;
-    JSON.parse(fs.readFileSync(filename, 'utf-8'), (key: string, value) => {
-        // console.log(key, typeof(key), value, typeof(value));
-        if (typeof(key) != typeof([])) {
-            if (key === "Date") {
-                d = value;
-            } else if (key === "FromAccount") {
-                f = value;
-            } else if (key === "ToAccount") {
-                t = value;
-            } else if (key === "Narrative") {
-                n = value;
-            } else if (key === "Amount") {
-                a = Number(value);
-            } else if (key != ""){
-                entries.push(new Entry(d, f, t, n, a));
-                // console.log(`added entry with Date: ${d}, From: ${f}, To: ${t}, Narrative: ${n} and Amount: ${a}`);
+
+    try {
+
+        let entries: Entry[] = [];
+        let d: string, f: string, t: string, n: string, a: number;
+        JSON.parse(fs.readFileSync(filename, 'utf-8'), (key: string, value) => {
+            // console.log(key, typeof(key), value, typeof(value));
+            if (typeof(key) != typeof([])) {
+                if (key === "Date") {
+                    d = value;
+                } else if (key === "FromAccount") {
+                    f = value;
+                } else if (key === "ToAccount") {
+                    t = value;
+                } else if (key === "Narrative") {
+                    n = value;
+                } else if (key === "Amount") {
+                    a = Number(value);
+                } else if (key != ""){
+                    entries.push(new Entry(d, f, t, n, a));
+                    // console.log(`added entry with Date: ${d}, From: ${f}, To: ${t}, Narrative: ${n} and Amount: ${a}`);
+                }
             }
-        }
-    });
-    return entries;
+        });
+        return entries;
+    } catch (e) {
+        console.log("File not found.")
+        return [];
+    }
 }
 
 interface EntryInterface {
@@ -200,14 +214,22 @@ function ConvertInterfaceToClass(interfaces: EntryInterface[]): Entry[] {
 
 function ReadXML(filename: string): Entry[] {
 
-    const xmlFilePath: string = path.resolve(__dirname, filename);
-    const fileContent: string = fs.readFileSync(xmlFilePath, { encoding: 'utf-8'});
+    try {
 
-    const parser = new XMLParser({
-        ignoreAttributes: false,
-    });
-    let entryInterfaces: EntryInterface[] = parser.parse(fileContent);
-    return ConvertInterfaceToClass(entryInterfaces);
+        const xmlFilePath: string = path.resolve(__dirname, filename);
+        const fileContent: string = fs.readFileSync(xmlFilePath, { encoding: 'utf-8'});
+        
+        const parser = new XMLParser({
+            ignoreAttributes: false,
+        });
+        let entryInterfaces: EntryInterface[] = parser.parse(fileContent);
+        return ConvertInterfaceToClass(entryInterfaces);
+
+    } catch (e) {
+        console.log("File not found.")
+        return [];
+    }
+
 }
 
 let entries: Entry[] = [];
@@ -294,5 +316,5 @@ while(!exit) {
     }
 }   
 
-// TODO: Handle file not found
 // TODO: Log newer functions
+// TODO: Add Export command handling
