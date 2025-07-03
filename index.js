@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var fs = require("fs");
 var path = require("path");
 var log4js = require("log4js");
+var fast_xml_parser_1 = require("fast-xml-parser");
 // var log4js = require("log4js");
 var logger = log4js.getLogger('logging.log');
 log4js.configure({
@@ -81,6 +82,14 @@ function ReadCSV(filename) {
     console.log(entries.length);
     return entries;
 }
+function VerifyUniqueTransaction(account, transaction) {
+    for (var _i = 0, _a = account.transactions; _i < _a.length; _i++) {
+        var t = _a[_i];
+        if (t.narrative === transaction.narrative && t.date === transaction.date)
+            return false;
+    }
+    return true;
+}
 function UpdateAccounts(entries) {
     var accounts = [];
     for (var _i = 0, entries_1 = entries; _i < entries_1.length; _i++) {
@@ -93,12 +102,12 @@ function UpdateAccounts(entries) {
             if (semaphoreFrom && semaphoreTo)
                 break;
             else {
-                if (ac.name === e.From) {
+                if (ac.name === e.From && VerifyUniqueTransaction(ac, t)) {
                     ac.account -= e.Amount;
                     ac.transactions.push(t);
                     semaphoreFrom = true;
                 }
-                if (ac.name == e.To) {
+                if (ac.name == e.To && VerifyUniqueTransaction(ac, t)) {
                     ac.account += e.Amount;
                     ac.transactions.push(t);
                     semaphoreTo = true;
@@ -121,9 +130,55 @@ function UpdateAccounts(entries) {
     return accounts;
 }
 function ReadJSON(filename) {
-    var dataArray = JSON.parse(fs.readFileSync(filename, 'utf-8'));
-    console.log(dataArray);
-    return [];
+    var entries = [];
+    var d, f, t, n, a;
+    JSON.parse(fs.readFileSync(filename, 'utf-8'), function (key, value) {
+        // console.log(key, typeof(key), value, typeof(value));
+        if (typeof (key) != typeof ([])) {
+            if (key === "Date") {
+                d = value;
+            }
+            else if (key === "FromAccount") {
+                f = value;
+            }
+            else if (key === "ToAccount") {
+                t = value;
+            }
+            else if (key === "Narrative") {
+                n = value;
+            }
+            else if (key === "Amount") {
+                a = Number(value);
+            }
+            else if (key != "") {
+                entries.push(new Entry(d, f, t, n, a));
+                // console.log(`added entry with Date: ${d}, From: ${f}, To: ${t}, Narrative: ${n} and Amount: ${a}`);
+            }
+        }
+    });
+    return entries;
+}
+function ConvertInterfaceToClass(interfaces) {
+    var entries = [];
+    for (var _i = 0, _a = interfaces["TransactionList"]["SupportTransaction"]; _i < _a.length; _i++) {
+        var trans = _a[_i];
+        var d = trans["@_Date"];
+        var n = trans["Description"];
+        var a = Number(trans["Value"]);
+        var f = trans["Parties"]["From"];
+        var t = trans["Parties"]["To"];
+        entries.push(new Entry(d, f, t, n, a));
+    }
+    return entries;
+}
+function ReadXML(filename) {
+    var xmlFilePath = path.resolve(__dirname, filename);
+    var fileContent = fs.readFileSync(xmlFilePath, { encoding: 'utf-8' });
+    var parser = new fast_xml_parser_1.XMLParser({
+        ignoreAttributes: false,
+    });
+    var entryInterfaces = parser.parse(fileContent);
+    return ConvertInterfaceToClass(entryInterfaces);
 }
 var entries = [];
 logger.info("Starting to read Transactions2014.csv.");
@@ -135,7 +190,10 @@ logger.info("Finished reading DodgyTransactions2015.csv.");
 logger.info("Starting to read Transactions2013.json.");
 var e3 = ReadJSON('Transactions2013.json');
 logger.info("Finished reading Transactions2013.json.");
-entries = e1.concat(e2.concat(e3));
+logger.info("Starting to read Transactions2012.xml.");
+var e4 = ReadXML('Transactions2012.xml');
+logger.info("Finished reading Transactions2012.xml.");
+entries = e1.concat(e2.concat(e3.concat(e4)));
 console.log(entries.length);
 logger.info("Starting to create account dataset.");
 var accounts = UpdateAccounts(entries);
@@ -146,7 +204,7 @@ while (!exit) {
     var readlineSync = require('readline-sync');
     logger.info("Waiting for user input.");
     var command = readlineSync.question('');
-    if (command.split(' ')[0] !== 'List') {
+    if (command.split(' ')[0] !== 'List' && command.split(' ')[0] !== 'Import' && command.split(' ')[0] !== 'Export') {
         logger.error("User has input a invalid command.");
         console.log('Please enter a valid command');
     }
@@ -154,7 +212,7 @@ while (!exit) {
         logger.info("User has given EXIT command, shuttding down.");
         exit = true;
     }
-    else {
+    else if (command.split(' ')[0] === 'List') {
         if (command.split(' ')[1] == 'All') {
             logger.info("User has asked for all the transactions of every account, printing...");
             console.log('Showing all transactions for all accounts');
@@ -185,6 +243,24 @@ while (!exit) {
                 logger.error("Account not found.");
                 console.log("Couldn't find " + pName);
             }
+        }
+    }
+    else if (command.split(' ')[0] === 'Import') {
+        if (command.split(' ')[1] != '' && command.split(' ')[1] != undefined && command.split(' ')[1] != ' ') {
+            var filename = command.split(' ')[1];
+            if (filename.split('.')[1] === "csv") {
+                entries = entries.concat(ReadCSV(filename));
+            }
+            else if (filename.split('.')[1] === "json") {
+                entries = entries.concat(ReadJSON(filename));
+            }
+            else if (filename.split('.')[1] === "xml") {
+                entries = entries.concat(ReadXML(filename));
+            }
+            else {
+                console.log("Invalid file type.");
+            }
+            console.log(entries.length);
         }
     }
 }
