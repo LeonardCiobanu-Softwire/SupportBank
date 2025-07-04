@@ -1,10 +1,8 @@
 import * as fs from "fs";
 import * as path from "path";
-import { parse } from 'csv-parse';
 import * as log4js from 'log4js';
-import { XMLParser, XMLBuilder } from 'fast-xml-parser';
-import { log } from "console";
-// var log4js = require("log4js");
+import { XMLParser } from 'fast-xml-parser';
+
 var logger = log4js.getLogger('logging.log');
 log4js.configure({
     appenders: {
@@ -60,35 +58,39 @@ class Entry {
     }
 }
 
-type TEntry = {
-    Date: string;
-    From: string;
-    To: string;
-    Narrative: string;
-    Amount: number;
-}
-
 function VerifyDate(date: string) : boolean {
-    if (date.length != 10)
+    logger.info("Verifying date is valid.");
+    if (date.length != 10) {
+        logger.info("Invalid date format.");
         return false;
+    }
+
+    // TODO: make valid date splitting invariable of format. (dd/mm/yyyy, d/m/yy, dd-mm-yyyy, dd-month-yyyy etc.)
+    // TODO: verify year corresponds to the file (the year for the transactions is mentioned in the name)
 
     let day = date.slice(0, 2);
     let month = date.slice(3, 5);
 
-    if (Number(day) > 31 || Number(day) < 1 || Number(month) > 12 || Number(month) < 1)
+    if (Number(day) > 31 || Number(day) < 1 || Number(month) > 12 || Number(month) < 1) {
+        logger.error("Invalid date.");
         return false;
-
+    }
+    logger.info("Date is valid.");
     return true;
 }
 
 function VerifyNameFormat(name: string): boolean {
-    if (name.split(' ').length == 2 && name.split(' ')[1].length == 1)
+    logger.info("Verifying name is valid.");
+    if (name.split(' ').length == 2 && name.split(' ')[1].length == 1) {
+        logger.info("Invalid name.");
         return true;
+    }
+    logger.info("Name is valid.");
     return false;
 }
 
 function ReadCSV(filename: string) : Entry[] {
-    
+    logger.info(`Staring to read ${filename}`);
     let entries: Entry[] = [];
     try{
 
@@ -104,7 +106,7 @@ function ReadCSV(filename: string) : Entry[] {
                 logger.error("Found invalid entry, skipping...");
             }
         }
-        console.log(entries.length);
+        logger.info(`Reading ${filename} sucessfull, added ${entries.length} entries.`);
         return entries;
 
     } catch (e) {
@@ -114,15 +116,19 @@ function ReadCSV(filename: string) : Entry[] {
 }
 
 function VerifyUniqueTransaction(account: Person, transaction: Transaction): boolean {
+    logger.info("Verifying that this transaction hasn't already been added.");
     for (let t of account.transactions) {
-        if (t.narrative === transaction.narrative && t.date === transaction.date)
+        if (t.narrative === transaction.narrative && t.date === transaction.date) {
+            logger.info("Transaction already added to this account.");
             return false;
+        }
     }
+    logger.info("Transaction can be added to account.")
     return true;
 }
 
 function UpdateAccounts(entries: Entry[]): Array<Person>{
-
+    logger.info("Adding transactions to accounts.");
     let accounts: Array<Person> = [];
     for (let e of entries) {
         let t: Transaction = new Transaction(e.Date, e.Narrative);
@@ -131,16 +137,17 @@ function UpdateAccounts(entries: Entry[]): Array<Person>{
         for (let ac of accounts) {
             if (semaphoreFrom && semaphoreTo)
                 break;
-            else {
-                if (ac.name === e.From && VerifyUniqueTransaction(ac, t)) {
+            else if (VerifyUniqueTransaction(ac, t)) {
+                if (ac.name === e.From) {
                     ac.account -= e.Amount;
                     ac.transactions.push(t);
                     semaphoreFrom = true;
-                }
-                if(ac.name == e.To && VerifyUniqueTransaction(ac, t)) {
+                    logger.info("Added transaction to account.")
+                } else if(ac.name == e.To) {
                     ac.account += e.Amount;
                     ac.transactions.push(t);
                     semaphoreTo = true;
+                    logger.info("Added transaction to account.")
                 }
             }
         }
@@ -149,26 +156,27 @@ function UpdateAccounts(entries: Entry[]): Array<Person>{
             p.account -= e.Amount;
             p.transactions.push(t);
             accounts.push(p);
+            logger.info(`Adding ${p.name}.`);
         }
         if (!semaphoreTo) {
             let p = new Person(e.To);
             p.account += e.Amount;
             p.transactions.push(t);
             accounts.push(p);
+            logger.info(`Adding ${p.name}.`);
         }
     }
-
+    logger.info("Finished added transactions.")
     return accounts;
 }
 
 function ReadJSON(filename: string): Entry[] {
-
+    logger.info(`Staring to read ${filename}`);
     try {
 
         let entries: Entry[] = [];
         let d: string, f: string, t: string, n: string, a: number;
         JSON.parse(fs.readFileSync(filename, 'utf-8'), (key: string, value) => {
-            // console.log(key, typeof(key), value, typeof(value));
             if (typeof(key) != typeof([])) {
                 if (key === "Date") {
                     d = value;
@@ -182,10 +190,10 @@ function ReadJSON(filename: string): Entry[] {
                     a = Number(value);
                 } else if (key != ""){
                     entries.push(new Entry(d, f, t, n, a));
-                    // console.log(`added entry with Date: ${d}, From: ${f}, To: ${t}, Narrative: ${n} and Amount: ${a}`);
                 }
             }
         });
+        logger.info(`Reading ${filename} sucessfull, added ${entries.length} entries.`);
         return entries;
     } catch (e) {
         console.log("File not found.")
@@ -200,6 +208,7 @@ interface EntryInterface {
 }
 
 function ConvertInterfaceToClass(interfaces: EntryInterface[]): Entry[] {
+    logger.info("Converting XML formated entries to Array of Entry instances.");
     let entries: Entry[] = [];
     for (let trans of interfaces["TransactionList"]["SupportTransaction"]) {
         let d: string = trans["@_Date"];
@@ -209,11 +218,12 @@ function ConvertInterfaceToClass(interfaces: EntryInterface[]): Entry[] {
         let t: string = trans["Parties"]["To"];
         entries.push(new Entry(d, f, t, n, a));
     }
+    logger.info("Successfully converted.");
     return entries;
 }
 
 function ReadXML(filename: string): Entry[] {
-
+    logger.info(`Staring to read ${filename}`);
     try {
 
         const xmlFilePath: string = path.resolve(__dirname, filename);
@@ -223,8 +233,9 @@ function ReadXML(filename: string): Entry[] {
             ignoreAttributes: false,
         });
         let entryInterfaces: EntryInterface[] = parser.parse(fileContent);
-        return ConvertInterfaceToClass(entryInterfaces);
-
+        let entries: Entry[] = ConvertInterfaceToClass(entryInterfaces);
+        logger.info(`Reading ${filename} sucessfull, added ${entries.length} entries.`);
+        return entries;
     } catch (e) {
         console.log("File not found.")
         return [];
@@ -234,21 +245,8 @@ function ReadXML(filename: string): Entry[] {
 
 let entries: Entry[] = [];
 
-logger.info("Starting to read Transactions2014.csv.")
-let e1 = ReadCSV('Transactions2014.csv');
-logger.info("Finished reading Transactions2014.csv.")
-
-logger.info("Starting to read DodgyTransactions2015.csv.")
-let e2 = ReadCSV('DodgyTransactions2015.csv');
-logger.info("Finished reading DodgyTransactions2015.csv.")
-
-logger.info("Starting to read Transactions2013.json.")
-let e3 = ReadJSON('Transactions2013.json');
-logger.info("Finished reading Transactions2013.json.")
-
-logger.info("Starting to read Transactions2012.xml.")
-let e4 = ReadXML('Transactions2012.xml');
-logger.info("Finished reading Transactions2012.xml.")
+let e1: Entry[] = ReadCSV('Transactions2014.csv'), e2: Entry[] = ReadCSV('DodgyTransactions2015.csv');
+let e3: Entry[] = ReadJSON('Transactions2013.json'), e4: Entry[] = ReadXML('Transactions2012.xml');
 
 entries = e1.concat(e2.concat(e3.concat(e4)));
 
@@ -313,8 +311,9 @@ while(!exit) {
             }
             console.log(entries.length)
         }
+    } else if (command.split(' ')[0] === 'Export') {
+        // TODO: Add Export command handling
+        console.log("Not implemented yet.");
+        logger.error("Not implemented yet.");
     }
 }   
-
-// TODO: Log newer functions
-// TODO: Add Export command handling
